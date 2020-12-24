@@ -99,9 +99,9 @@
 <p>对应<code>Optimizer::LocalBundleAdjustment()</code>函数。这里优化的是当前帧，以及与当前帧在covisibility graph里面有连接关系的那些关键帧的位姿，以及这些帧看到的地图点，其实就是对局部地图进行优化。详细分析参见优化部分博客。</p>
 <h4 id="6冗余关键帧剔除"><a class="markdownIt-Anchor" href="#6冗余关键帧剔除"></a> 6.冗余关键帧剔除</h4>
 <p>对应<code>LocalMapping::KeyFrameCulling()</code>函数。候选的pKF是LocalMapping中当前处理的关键帧的共视关键帧，不包括第一帧关键帧与当前关键帧。如果一个关键帧检测到的90%的地图点，在其他不少于三个具有相同或更精确尺度的关键帧里面都被检测到，就认定该关键帧冗余（该关键帧的存在提供的地图点观测信息有限），并剔除</p>
-</div></article></div><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2020-09-20T12:40:02.000Z" title="2020-09-20T12:40:02.000Z">2020-09-20</time></span><span class="level-item">Updated&nbsp;<time dateTime="2020-12-24T13:02:25.473Z" title="2020-12-24T13:02:25.473Z">2020-12-24</time></span><span class="level-item"><a class="link-muted" href="/categories/SLAM/">SLAM</a><span> / </span><a class="link-muted" href="/categories/SLAM/ORBSLAM2/">ORBSLAM2</a></span><span class="level-item">25 minutes read (About 3810 words)</span></div></div><h1 class="title is-3 is-size-4-mobile"><a class="link-muted" href="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/">orbslam2代码解析--特征跟踪及初始化</a></h1><div class="content"><p>ORBSLAM分定位和SLAM两个模式，定位模式localmap不工作，不插入新的关键帧以及更新地图</p>
-<p><img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/bxh/blog/source/_posts/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/123.png%22orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90--%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96%5C123.png%22" alt="123"></p>
-<p><img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/bxh/blog/source/_posts/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/2.png" alt="2"></p>
+</div></article></div><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2020-09-20T12:40:02.000Z" title="2020-09-20T12:40:02.000Z">2020-09-20</time></span><span class="level-item">Updated&nbsp;<time dateTime="2020-12-24T13:08:50.852Z" title="2020-12-24T13:08:50.852Z">2020-12-24</time></span><span class="level-item"><a class="link-muted" href="/categories/SLAM/">SLAM</a><span> / </span><a class="link-muted" href="/categories/SLAM/ORBSLAM2/">ORBSLAM2</a></span><span class="level-item">25 minutes read (About 3786 words)</span></div></div><h1 class="title is-3 is-size-4-mobile"><a class="link-muted" href="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/">orbslam2代码解析--特征跟踪及初始化</a></h1><div class="content"><p>ORBSLAM分定位和SLAM两个模式，定位模式localmap不工作，不插入新的关键帧以及更新地图</p>
+<p><img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/123.png" alt></p>
+<p><img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/2.png" alt></p>
 <p>在跟踪时，初始化完成后首先调用的是GrabImageMonocular函数，对图像格式进行转换，将RGB转为灰度图。</p>
 <p>然后通过图片初始化一个Frame类</p>
 <p><code>mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth)</code></p>
@@ -110,7 +110,7 @@
 2.通过上一帧获得初始位姿估计或者重定位。也就是求出当前帧在世界坐标系下的位姿<br>
 3.跟踪局部地图TrackLocalMap() 求得位姿估计, 这一步判断了当前帧的特征点和map中的哪些mappoint匹配。<br>
 4.判断是否需要给localmapping插入关键帧</p>
-<img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/bxh/blog/source/_posts/orbslam2代码解析-特征跟踪及初始化/tracking.png" alt="tracking" style="zoom:75%;">
+<img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/tracking.png" alt="tracking" style="zoom:75%;">
 <h4 id="1-单目初始化"><a class="markdownIt-Anchor" href="#1-单目初始化"></a> 1. 单目初始化</h4>
 <p>双目和RGBD只需要一帧图片即可初始化，单目需要两帧才能完成，其流程为：</p>
 <h5 id="1根据得到的两帧图像的特征匹配我们就可以计算单应矩阵h和基础矩阵f"><a class="markdownIt-Anchor" href="#1根据得到的两帧图像的特征匹配我们就可以计算单应矩阵h和基础矩阵f"></a> 1.根据得到的两帧图像的特征匹配，我们就可以计算单应矩阵H，和基础矩阵F</h5>
@@ -200,7 +200,7 @@ if(medianDepth&lt;0 || pKFcur-&gt;TrackedMapPoints(1)&lt;100)
 <p>如果内点满足要求(&gt;50)则成功重定位，将最新重定位的id更新：mnLastRelocFrameId = mCurrentFrame.mnId;　否则返回false。</p>
 <h4 id="3tracklocalmap"><a class="markdownIt-Anchor" href="#3tracklocalmap"></a> 3.TrackLocalMap</h4>
 <p>通过上面三种模型获取了初始的相机位姿和初始的特征匹配，就可以将完整的地图（地图点）投影到当前帧中，去搜索更多的匹配。但是投影完整的地图，在large scale的场景中是很耗计算而且也没有必要的，因此，这里使用了局部地图LocalMap来进行投影匹配。对局部地图的更新包括对局部关键帧和局部地图点的更新。<strong>局部地图包含</strong>：与当前帧相连的关键帧K1（所有能观察到当前帧对应地图点的关键帧，图中Pos2），以及与K1相连的关键帧K2（一级二级相连关键帧，图中Pos1），并且限制了关键数量不超过80；K1、K2对应的地图点（图中X1）；参考关键帧Kf。局部地图就是红色椭圆圈出的部分，参与局部优化，其中红色代表取值会被优化，灰色代表取值保持不变。</p>
-<img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/bxh/blog/source/_posts/orbslam2代码解析-特征跟踪及初始化/局部地图示意图.png" alt="局部地图示意图" style="zoom:67%;">
+<img src="/2020/09/20/orbslam2%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%89%B9%E5%BE%81%E8%B7%9F%E8%B8%AA%E5%8F%8A%E5%88%9D%E5%A7%8B%E5%8C%96/局部地图示意图.png" alt="局部地图示意图" style="zoom:67%;">
 <p>1：更新局部关键帧mvpLocalKeyFrames和局部地图点mvpLocalMapPoints</p>
 <p>UpdateLocalMap();</p>
 <p>局部关键帧的选择策略：</p>
